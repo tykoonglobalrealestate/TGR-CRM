@@ -63,12 +63,12 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, enableMultiTabIndexedDbPersistence, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBsVsHtOmueUr4GQJJM1zEvZnaKQ7DwmW0",
-      authDomain: "tykoonglobalrealestate.github.io",
+      authDomain: "tgr-real-estate-crm.firebaseapp.com",
       projectId: "tgr-real-estate-crm",
       storageBucket: "tgr-real-estate-crm.firebasestorage.app",
       messagingSenderId: "554901981712",
@@ -90,10 +90,30 @@
       errEl.style.display = 'block';
     };
 
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      signInWithPopup(auth, provider).catch(err => {
-        showError('Login failed: ' + err.message);
-      });
+    // Process mobile redirect credentials on page load
+    getRedirectResult(auth).catch((err) => {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        showError('Redirect error: ' + err.message);
+      }
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      document.getElementById('errorMsg').style.display = 'none';
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        signInWithRedirect(auth, provider);
+      } else {
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (err) {
+          if (err.code === 'auth/popup-blocked') {
+            signInWithRedirect(auth, provider);
+          } else {
+            showError('Login failed: ' + err.message);
+          }
+        }
+      }
     });
 
     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
