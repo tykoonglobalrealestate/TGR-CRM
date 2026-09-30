@@ -16,6 +16,7 @@
     .status-tag { display: inline-block; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
     #appContent { display: none; }
     #loginScreen { text-align: center; padding: 40px 16px; }
+    #errorMsg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -27,9 +28,10 @@
       <h3>Private Real Estate Portal</h3>
       <p style="color: #64748b; margin-bottom: 20px;">Please sign in to access your client data.</p>
       <button id="loginBtn">Sign in with Google</button>
+      <p id="errorMsg"></p>
     </div>
 
-    <!-- MAIN APP CONTENT (Hidden until logged in) -->
+    <!-- MAIN APP CONTENT -->
     <div id="appContent">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <span id="userEmail" style="font-size: 0.85rem; color: #64748b;"></span>
@@ -66,7 +68,7 @@
 
     const firebaseConfig = {
       apiKey: "AIzaSyBsVsHtOmueUr4GQJJM1zEvZnaKQ7DwmW0",
-      authDomain: "tgr-real-estate-crm.firebaseapp.com",
+      authDomain: "tykoonglobalrealestate.github.io",
       projectId: "tgr-real-estate-crm",
       storageBucket: "tgr-real-estate-crm.firebasestorage.app",
       messagingSenderId: "554901981712",
@@ -82,11 +84,20 @@
 
     const provider = new GoogleAuthProvider();
 
-    // Login & Logout Listeners
-    document.getElementById('loginBtn').addEventListener('click', () => signInWithPopup(auth, provider));
+    const showError = (msg) => {
+      const errEl = document.getElementById('errorMsg');
+      errEl.innerText = msg;
+      errEl.style.display = 'block';
+    };
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      signInWithPopup(auth, provider).catch(err => {
+        showError('Login failed: ' + err.message);
+      });
+    });
+
     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
 
-    // Auth State Handler
     onAuthStateChanged(auth, (user) => {
       if (user) {
         document.getElementById('loginScreen').style.display = 'none';
@@ -99,7 +110,6 @@
       }
     });
 
-    // Save Lead Function
     document.getElementById('saveBtn').addEventListener('click', async () => {
       const name = document.getElementById('name').value;
       if (!name) return alert('Please enter client name');
@@ -120,7 +130,6 @@
       alert('Client Saved!');
     });
 
-    // Load Data
     function loadClients() {
       const q = query(collection(db, "clients"), orderBy("createdAt", "desc"));
       onSnapshot(q, (snapshot) => {
