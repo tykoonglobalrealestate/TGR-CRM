@@ -14,36 +14,54 @@
     button { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
     .client-item { border-left: 4px solid var(--primary); padding-left: 12px; margin-bottom: 12px; }
     .status-tag { display: inline-block; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    #appContent { display: none; }
+    #loginScreen { text-align: center; padding: 40px 16px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>TGR Real Estate CRM</h1>
-    
-    <div class="card">
-      <h3>Add New Lead / Client</h3>
-      <input type="text" id="name" placeholder="Client Name" required>
-      <input type="tel" id="phone" placeholder="Phone Number">
-      <input type="text" id="budget" placeholder="Budget (e.g. ₹75 Lakhs)">
-      <select id="status">
-        <option value="New Lead">New Lead</option>
-        <option value="Contacted">Contacted</option>
-        <option value="Showing">Showing Properties</option>
-        <option value="Under Contract">Under Contract</option>
-        <option value="Closed">Closed / Deal Done</option>
-      </select>
-      <textarea id="notes" placeholder="Property requirements, preferred locations, notes..."></textarea>
-      <button id="saveBtn">Save Client</button>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="card">
+      <h3>Private Real Estate Portal</h3>
+      <p style="color: #64748b; margin-bottom: 20px;">Please sign in to access your client data.</p>
+      <button id="loginBtn">Sign in with Google</button>
     </div>
 
-    <div class="card">
-      <h3>My Clients</h3>
-      <div id="clientList">Loading clients...</div>
+    <!-- MAIN APP CONTENT (Hidden until logged in) -->
+    <div id="appContent">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span id="userEmail" style="font-size: 0.85rem; color: #64748b;"></span>
+        <button id="logoutBtn" style="width: auto; padding: 6px 12px; background: #ef4444; margin: 0;">Logout</button>
+      </div>
+
+      <div class="card">
+        <h3>Add New Lead / Client</h3>
+        <input type="text" id="name" placeholder="Client Name" required>
+        <input type="tel" id="phone" placeholder="Phone Number">
+        <input type="text" id="budget" placeholder="Budget (e.g. ₹75 Lakhs)">
+        <select id="status">
+          <option value="New Lead">New Lead</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Showing">Showing Properties</option>
+          <option value="Under Contract">Under Contract</option>
+          <option value="Closed">Closed / Deal Done</option>
+        </select>
+        <textarea id="notes" placeholder="Property requirements, preferred locations, notes..."></textarea>
+        <button id="saveBtn">Save Client</button>
+      </div>
+
+      <div class="card">
+        <h3>My Clients</h3>
+        <div id="clientList">Loading clients...</div>
+      </div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, enableMultiTabIndexedDbPersistence, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -57,10 +75,31 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
     enableMultiTabIndexedDbPersistence(db).catch(() => {});
 
+    const provider = new GoogleAuthProvider();
+
+    // Login & Logout Listeners
+    document.getElementById('loginBtn').addEventListener('click', () => signInWithPopup(auth, provider));
+    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+    // Auth State Handler
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        document.getElementById('userEmail').innerText = user.email;
+        loadClients();
+      } else {
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('appContent').style.display = 'none';
+      }
+    });
+
+    // Save Lead Function
     document.getElementById('saveBtn').addEventListener('click', async () => {
       const name = document.getElementById('name').value;
       if (!name) return alert('Please enter client name');
@@ -81,22 +120,25 @@
       alert('Client Saved!');
     });
 
-    const q = query(collection(db, "clients"), orderBy("createdAt", "desc"));
-    onSnapshot(q, (snapshot) => {
-      const list = document.getElementById('clientList');
-      list.innerHTML = '';
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        list.innerHTML += `
-          <div class="client-item card">
-            <strong>${data.name}</strong> <span class="status-tag">${data.status}</span>
-            <p>📞 ${data.phone || 'N/A'} | 💰 ${data.budget || 'N/A'}</p>
-            <p style="font-size: 0.9rem; color: #475569;">${data.notes || ''}</p>
-          </div>
-        `;
+    // Load Data
+    function loadClients() {
+      const q = query(collection(db, "clients"), orderBy("createdAt", "desc"));
+      onSnapshot(q, (snapshot) => {
+        const list = document.getElementById('clientList');
+        list.innerHTML = '';
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          list.innerHTML += `
+            <div class="client-item card">
+              <strong>${data.name}</strong> <span class="status-tag">${data.status}</span>
+              <p>📞 ${data.phone || 'N/A'} | 💰 ${data.budget || 'N/A'}</p>
+              <p style="font-size: 0.9rem; color: #475569;">${data.notes || ''}</p>
+            </div>
+          `;
+        });
+        if(snapshot.empty) list.innerHTML = '<p>No clients added yet.</p>';
       });
-      if(snapshot.empty) list.innerHTML = '<p>No clients added yet.</p>';
-    });
+    }
   </script>
 </body>
 </html>
