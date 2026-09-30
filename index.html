@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TGR Real Estate CRM</title>
+  <style>
+    :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.5rem; margin-bottom: 20px; }
+    .card { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    input, select, textarea, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 10px; box-sizing: border-box; font-size: 1rem; }
+    button { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
+    .client-item { border-left: 4px solid var(--primary); padding-left: 12px; margin-bottom: 12px; }
+    .status-tag { display: inline-block; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TGR Real Estate CRM</h1>
+    
+    <div class="card">
+      <h3>Add New Lead / Client</h3>
+      <input type="text" id="name" placeholder="Client Name" required>
+      <input type="tel" id="phone" placeholder="Phone Number">
+      <input type="text" id="budget" placeholder="Budget (e.g. ₹75 Lakhs)">
+      <select id="status">
+        <option value="New Lead">New Lead</option>
+        <option value="Contacted">Contacted</option>
+        <option value="Showing">Showing Properties</option>
+        <option value="Under Contract">Under Contract</option>
+        <option value="Closed">Closed / Deal Done</option>
+      </select>
+      <textarea id="notes" placeholder="Property requirements, preferred locations, notes..."></textarea>
+      <button id="saveBtn">Save Client</button>
+    </div>
+
+    <div class="card">
+      <h3>My Clients</h3>
+      <div id="clientList">Loading clients...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, enableMultiTabIndexedDbPersistence, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsVsHtOmueUr4GQJJM1zEvZnaKQ7DwmW0",
+      authDomain: "tgr-real-estate-crm.firebaseapp.com",
+      projectId: "tgr-real-estate-crm",
+      storageBucket: "tgr-real-estate-crm.firebasestorage.app",
+      messagingSenderId: "554901981712",
+      appId: "1:554901981712:web:8e9f472bc957df510f9895",
+      measurementId: "G-86GDB53F7C"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    enableMultiTabIndexedDbPersistence(db).catch(() => {});
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const name = document.getElementById('name').value;
+      if (!name) return alert('Please enter client name');
+
+      await addDoc(collection(db, "clients"), {
+        name: name,
+        phone: document.getElementById('phone').value,
+        budget: document.getElementById('budget').value,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value,
+        createdAt: new Date()
+      });
+
+      document.getElementById('name').value = '';
+      document.getElementById('phone').value = '';
+      document.getElementById('budget').value = '';
+      document.getElementById('notes').value = '';
+      alert('Client Saved!');
+    });
+
+    const q = query(collection(db, "clients"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      const list = document.getElementById('clientList');
+      list.innerHTML = '';
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        list.innerHTML += `
+          <div class="client-item card">
+            <strong>${data.name}</strong> <span class="status-tag">${data.status}</span>
+            <p>📞 ${data.phone || 'N/A'} | 💰 ${data.budget || 'N/A'}</p>
+            <p style="font-size: 0.9rem; color: #475569;">${data.notes || ''}</p>
+          </div>
+        `;
+      });
+      if(snapshot.empty) list.innerHTML = '<p>No clients added yet.</p>';
+    });
+  </script>
+</body>
+</html>
